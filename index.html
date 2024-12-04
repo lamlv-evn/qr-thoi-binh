@@ -88,33 +88,48 @@
     const suggestionsList = document.getElementById('suggestions');
     const resultDiv = document.getElementById('result');
 
-    input.addEventListener('input', async (e) => {
+    let debounceTimeout; // Biến lưu timeout cho debounce
+
+    input.addEventListener('input', (e) => {
       const query = e.target.value.trim();
-      if (query.length > 0) {
-        suggestionsList.innerHTML = '<div class="loading">Đang tải...</div>';
-        const response = await fetch(`${apiUrl}?query=${query}`);
-        const data = await response.json();
 
-        // Xóa các gợi ý cũ
-        suggestionsList.innerHTML = '';
-
-        // Thêm gợi ý mới
-        if (data.suggestions && data.suggestions.length > 0) {
-          data.suggestions.forEach(item => {
-            const li = document.createElement('li');
-            li.textContent = `${item.code} - ${item.name}`;
-            li.addEventListener('click', () => {
-              input.value = item.code;
-              suggestionsList.innerHTML = '';
-              fetchDetails(item.code);
-            });
-            suggestionsList.appendChild(li);
-          });
-        }
-      } else {
-        suggestionsList.innerHTML = '';
+      // Hủy timeout cũ nếu người dùng tiếp tục nhập
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
       }
+
+      // Đặt timeout mới để chờ 1 giây
+      debounceTimeout = setTimeout(() => {
+        if (query.length > 0) {
+          fetchSuggestions(query);
+        } else {
+          suggestionsList.innerHTML = '';
+        }
+      }, 1000); // 1000ms = 1s
     });
+
+    async function fetchSuggestions(query) {
+      suggestionsList.innerHTML = '<div class="loading">Đang tải...</div>';
+      const response = await fetch(`${apiUrl}?query=${query}`);
+      const data = await response.json();
+
+      // Xóa các gợi ý cũ
+      suggestionsList.innerHTML = '';
+
+      // Thêm gợi ý mới
+      if (data.suggestions && data.suggestions.length > 0) {
+        data.suggestions.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${item.code} - ${item.name}`;
+          li.addEventListener('click', () => {
+            input.value = item.code;
+            suggestionsList.innerHTML = '';
+            fetchDetails(item.code);
+          });
+          suggestionsList.appendChild(li);
+        });
+      }
+    }
 
     async function fetchDetails(id) {
       resultDiv.innerHTML = '<div class="loading">Đang tải...</div>';
@@ -139,5 +154,6 @@
       }
     }
   </script>
+
 </body>
 </html>
