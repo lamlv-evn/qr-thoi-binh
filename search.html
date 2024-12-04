@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tra cứu mã định danh</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    input {
+      font-size: 18px;
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 5px 0 20px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    li {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #ddd;
+    }
+
+    li:last-child {
+      border-bottom: none;
+    }
+
+    li:hover {
+      background-color: #f0f0f0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    table th, table td {
+      text-align: left;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+
+    table th {
+      background-color: #f7f7f7;
+      font-weight: bold;
+    }
+
+    .result-container {
+      margin-top: 20px;
+    }
+
+    .loading {
+      text-align: center;
+      font-size: 16px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tra cứu mã định danh</h1>
+  <input type="text" id="input" placeholder="Nhập mã định danh...">
+  <ul id="suggestions"></ul>
+
+  <div class="result-container" id="result"></div>
+
+  <script>
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbwMJYncq6omSgKdgVAT83Tan-4mk6o7IUMGvhfcrwTPy5fw-1gOapu12ov6qmTHLF_NiQ/exec'; // Thay bằng URL Web App của bạn
+
+    const input = document.getElementById('input');
+    const suggestionsList = document.getElementById('suggestions');
+    const resultDiv = document.getElementById('result');
+
+    input.addEventListener('input', async (e) => {
+      const query = e.target.value.trim();
+      if (query.length > 0) {
+        suggestionsList.innerHTML = '<div class="loading">Đang tải...</div>';
+        const response = await fetch(`${apiUrl}?query=${query}`);
+        const data = await response.json();
+
+        // Xóa các gợi ý cũ
+        suggestionsList.innerHTML = '';
+
+        // Thêm gợi ý mới
+        if (data.suggestions && data.suggestions.length > 0) {
+          data.suggestions.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = `${item.code} - ${item.name}`;
+            li.addEventListener('click', () => {
+              input.value = item.code;
+              suggestionsList.innerHTML = '';
+              fetchDetails(item.code);
+            });
+            suggestionsList.appendChild(li);
+          });
+        }
+      } else {
+        suggestionsList.innerHTML = '';
+      }
+    });
+
+    async function fetchDetails(id) {
+      resultDiv.innerHTML = '<div class="loading">Đang tải...</div>';
+      const response = await fetch(`${apiUrl}?id=${id}`);
+      const data = await response.json();
+
+      // Hiển thị dữ liệu dạng bảng
+      if (!data.error) {
+        let tableHTML = '<table><thead><tr><th>Thông tin</th><th>Giá trị</th></tr></thead><tbody>';
+
+        for (const [key, value] of Object.entries(data)) {
+          const formattedValue = typeof value === 'string'
+            ? value.replace(/\\n/g, '<br>').replace(/\\t/g, '&emsp;')
+            : value;
+          tableHTML += `<tr><td>${key}</td><td>${formattedValue}</td></tr>`;
+        }
+
+        tableHTML += '</tbody></table>';
+        resultDiv.innerHTML = tableHTML;
+      } else {
+        resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
