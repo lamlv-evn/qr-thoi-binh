@@ -142,7 +142,7 @@
 
         for (const [key, value] of Object.entries(data)) {
           const formattedValue = typeof value === 'string'
-            ? value.replace(/\\n/g, '<br>').replace(/\\t/g, '&emsp;')
+            ? value.replace(/\n/g, '<br>').replace(/\t/g, '&emsp;') // Replace \n and \t
             : value;
           tableHTML += `<tr><td>${key}</td><td>${formattedValue}</td></tr>`;
         }
