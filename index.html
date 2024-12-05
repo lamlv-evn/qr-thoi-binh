@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bảng Mã QR PTB</title>
+  <title>Thông Tin Trạm CC Và CD</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -75,14 +75,14 @@
   </style>
 </head>
 <body>
-  <h1>Bảng Mã QR PTB</h1>
+  <h1>Thông Tin Trạm CC Và CD</h1>
   <input type="text" id="input" placeholder="Nhập mã trạm hoặc tên trạm...">
   <ul id="suggestions"></ul>
 
   <div class="result-container" id="result"></div>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script>
-    const apiUrl = 'https://script.google.com/macros/s/AKfycbyaWzn-0BBBROXr-zgZQiZxZ0yrot16MrQV5zWLc1R5GP7xImrvf2_RGqK0M46pkXiHHA/exec'; // Thay bằng URL Web App của bạn
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbyTlymLEPKKIPNjIEqHmFUbhIWJT3H4DyLx2D06HGfAwbROyo-ROXWDygn4jBLPHzJXoA/exec'; // Thay bằng URL Web App của bạn
 
     const input = document.getElementById('input');
     const suggestionsList = document.getElementById('suggestions');
@@ -90,7 +90,49 @@
 
     let debounceTimeout; // Biến lưu timeout cho debounce
 
-    input.addEventListener('input', (e) => {
+    function setCookie(name, value, minutes) {
+      const date = new Date();
+      date.setTime(date.getTime() + (minutes * 60 * 1000));
+      document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/`;
+    }
+
+    function getCookie(name) {
+      const cookies = document.cookie.split('; ');
+      for (const cookie of cookies) {
+        const [key, value] = cookie.split('=');
+        if (key === name) return value;
+      }
+      return null;
+    }
+
+    async function askForPassword() {
+      let password;
+      while (true) {
+        password = prompt('Vui lòng nhập mật khẩu:');
+        if (!password) continue;
+
+        const hashedPassword = CryptoJS.MD5(password).toString();
+        const response = await fetch(`${apiUrl}?password=${encodeURIComponent(hashedPassword)}`);
+        const data = await response.json();
+
+        if (response.ok && !data.error) {
+          setCookie('password', hashedPassword, 30); // Save password for 30 minutes
+          return hashedPassword;
+        } else {
+          alert('Mật khẩu không hợp lệ!');
+        }
+      }
+    }
+
+    async function ensurePassword() {
+      let password = getCookie('password');
+      if (!password) {
+        password = await askForPassword();
+      }
+      return password;
+    }
+
+    input.addEventListener('input', async (e) => {
       const query = e.target.value.trim();
 
       // Hủy timeout cũ nếu người dùng tiếp tục nhập
@@ -99,18 +141,19 @@
       }
 
       // Đặt timeout mới để chờ 1 giây
-      debounceTimeout = setTimeout(() => {
+      debounceTimeout = setTimeout(async () => {
         if (query.length > 0) {
-          fetchSuggestions(query);
+          const password = await ensurePassword();
+          fetchSuggestions(query, password);
         } else {
           suggestionsList.innerHTML = '';
         }
       }, 1000); // 1000ms = 1s
     });
 
-    async function fetchSuggestions(query) {
+    async function fetchSuggestions(query, password) {
       suggestionsList.innerHTML = '<div class="loading">Đang tải...</div>';
-      const response = await fetch(`${apiUrl}?query=${query}`);
+      const response = await fetch(`${apiUrl}?query=${query}&password=${encodeURIComponent(password)}`);
       const data = await response.json();
 
       // Xóa các gợi ý cũ
@@ -121,19 +164,20 @@
         data.suggestions.forEach(item => {
           const li = document.createElement('li');
           li.textContent = `${item.code} - ${item.name}`;
-          li.addEventListener('click', () => {
+          li.addEventListener('click', async () => {
             input.value = item.code;
             suggestionsList.innerHTML = '';
-            fetchDetails(item.code);
+            const password = await ensurePassword();
+            fetchDetails(item.code, password);
           });
           suggestionsList.appendChild(li);
         });
       }
     }
 
-    async function fetchDetails(id) {
+    async function fetchDetails(id, password) {
       resultDiv.innerHTML = '<div class="loading">Đang tải...</div>';
-      const response = await fetch(`${apiUrl}?id=${id}`);
+      const response = await fetch(`${apiUrl}?id=${id}&password=${encodeURIComponent(password)}`);
       const data = await response.json();
 
       // Hiển thị dữ liệu dạng bảng
@@ -153,6 +197,9 @@
         resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
       }
     }
+
+    // Ensure password on page load
+    ensurePassword();
   </script>
 
 </body>
